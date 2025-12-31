@@ -27,20 +27,16 @@ def get_update_details(update_url):
     content = soup.find('div', attrs={'id': 'content'})
 
     update_details = {}
-    update_details["date"] = "No Date Found"
 
-    changelog_date = soup.find('span', class_='mw-headline', id=re.compile(r'^Changelog_'))
-    if changelog_date:
-        changelog_date_text = changelog_date.text.strip()
-        m = re.search(r'Changelog\s*[-–]\s*(.+)', changelog_date_text, re.I)
-        if m:
-            update_details["date"] = m.group(1).strip()
-        else:
-            idval = changelog_date.get('id', '')
-            if idval.startswith('Changelog_'):
-                update_details["date"] = idval[len('Changelog_'):].replace('_', ' ').strip()
-            else:
-                update_details["date"] = changelog_date_text
+    update_date_information = soup.find('div', attrs={'class': 'update'})
+    date_text = "Not found"
+    if update_date_information:
+        date_text = ""
+        date_information = update_date_information.find_all('a', attrs={'title': re.compile("^\\d+.*")})
+        if date_information and len(date_information) >= 2: 
+            for date_div in date_information[0:2]: # Get first two since any further date parts include revisions 
+                date_text += date_div['title'].strip() + " "
+    update_details["Date:"] = date_text.strip()
 
     for section in content.find_all(['h1', 'h2', 'h3']):
         section_title = section.text.strip()
@@ -89,8 +85,7 @@ if __name__ == "__main__":
     
     for update_link in get_updates():
         path = Path(main_file_path) / f"{sanitize_filename(update_link.split('/')[-1])}.txt"
-        if path.exists():
-            continue
+        
         path.parent.mkdir(parents=True, exist_ok=True)
         details = get_update_details(update_link)
         with open(path, "w", encoding="utf-8") as file:
