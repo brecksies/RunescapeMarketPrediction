@@ -18,11 +18,12 @@ def get_updates():
     updates_links = []
     
     for update in soup.find_all('a', attrs={'title': lambda x: x and x.startswith("Update:")}):
-        update_url = BaseURL + update['title'].replace(" ", "_")
+        update_url = BaseURL + update['title']
         updates_links.append(update_url)
     return updates_links
 
 def get_update_details(update_url):
+    update_url = sanitize_URL(update_url)
     soup = get_bs_html(update_url)
     content = soup.find('div', attrs={'id': 'content'})
 
@@ -70,14 +71,14 @@ def extract_contents_under_header(header_section):
     return contents
 
 def sanitize_filename(name):
-    """
-    Sanitizes a string to make it a safe filename.
-    Replaces invalid characters with underscores.
-    """
     invalid_chars_pattern = r'[\\:*?"<>|/]'
     sanitized_name = re.sub(invalid_chars_pattern, '_', name)
     sanitized_name = ''.join(char for char in sanitized_name if char.isprintable())
     return sanitized_name.strip()
+
+def sanitize_URL(url):
+    url = url.replace("?", "%3F").replace("&", "%26").replace("=", "%3D").replace("'", "%27").replace("#", "%23").replace("+", "%2B").replace(" ", "_")
+    return url
 
 if __name__ == "__main__":
     load_dotenv()
@@ -85,7 +86,6 @@ if __name__ == "__main__":
     
     for update_link in get_updates():
         path = Path(main_file_path) / f"{sanitize_filename(update_link.split('/')[-1])}.txt"
-        
         path.parent.mkdir(parents=True, exist_ok=True)
         details = get_update_details(update_link)
         with open(path, "w", encoding="utf-8") as file:
