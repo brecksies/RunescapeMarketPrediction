@@ -1,3 +1,4 @@
 .env
 AllBlogPosts.txt
 BlogPostSentimentalAnalysis/BlogPosts
+ItemIDs.json
