@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 from pathlib import Path
 from dotenv import load_dotenv
+import json
 import re
 import os
 import requests
@@ -37,7 +38,7 @@ def get_update_details(update_url):
         if date_information and len(date_information) >= 2: 
             for date_div in date_information[0:2]: # Get first two since any further date parts include revisions 
                 date_text += date_div['title'].strip() + " "
-    update_details["Date:"] = date_text.strip()
+    update_details["Date"] = date_text.strip()
 
     for section in content.find_all(['h1', 'h2', 'h3']):
         section_title = section.text.strip()
@@ -80,20 +81,33 @@ def sanitize_URL(url):
     url = url.replace("?", "%3F").replace("&", "%26").replace("=", "%3D").replace("'", "%27").replace("#", "%23").replace("+", "%2B").replace(" ", "_")
     return url
 
+def convert_date_to_timestamp(date_string):
+    from datetime import datetime
+    try:
+        dt = datetime.strptime(date_string, "%d %B %Y")
+        return int(dt.timestamp())
+    except ValueError:
+        return None
+
 if __name__ == "__main__":
+    RetrieveJSON = True # Set to False to retrieve just the text files of the updates
     load_dotenv()
     main_file_path = os.getenv("FILE_PATH") + "BlogPostSentimentalAnalysis/BlogPosts/"
     
     for update_link in get_updates():
-        path = Path(main_file_path) / f"{sanitize_filename(update_link.split('/')[-1])}.txt"
+        path = Path(main_file_path) / f"{sanitize_filename(update_link.split('/')[-1])}.{"json" if RetrieveJSON else "txt"}"
         path.parent.mkdir(parents=True, exist_ok=True)
         details = get_update_details(update_link)
         with open(path, "w", encoding="utf-8") as file:
-            for key, value in details.items():
-                file.write(f"{key}\n{value}\n\n")
-        with open("AllBlogPosts.txt", "a", encoding="utf-8") as file:
-            file.write(f"--- {update_link.split('/')[-1]} ---\n")
-            for key, value in details.items():
-                file.write(f"{key}\n{value}\n\n")
+            if RetrieveJSON:
+                JSON_data = {}
+                JSON_data["name"] = update_link.split('/')[-1]
+                JSON_data["date"] = details.pop("Date", "Not found")
+                JSON_data["timestamp"] = convert_date_to_timestamp(JSON_data["date"])
+                JSON_data["details"] = details
+                json.dump(JSON_data, file, indent=4)
+            else:
+                for key, value in details.items():
+                    file.write(f"{key}\n{value}\n\n")
 
     
